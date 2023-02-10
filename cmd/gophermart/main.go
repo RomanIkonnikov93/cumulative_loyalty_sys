@@ -4,8 +4,8 @@ import (
 	"log"
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/repository"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/server"
-	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/userrepository"
 )
 
 func main() {
@@ -15,9 +15,9 @@ func main() {
 		log.Fatal("GetConfig: ", err)
 	}
 
-	rep, err := userrepository.NewUserRepository(*cfg)
+	rep, err := repository.NewRepository(*cfg)
 	if err != nil {
-		log.Fatal("NewUserRepository: ", err)
+		log.Fatal("NewRepository: ", err)
 	}
 
 	err = server.StartServer(cfg, *rep)

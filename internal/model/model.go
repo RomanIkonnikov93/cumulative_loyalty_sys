@@ -8,5 +8,6 @@ type UserAuth struct {
 }
 
 type MyCustomClaims struct {
+	Foo string `json:"foo"`
 	jwt.RegisteredClaims
 }

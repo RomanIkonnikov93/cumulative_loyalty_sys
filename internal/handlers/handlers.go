@@ -9,11 +9,12 @@ import (
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/authjwt"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/model"
-	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/userrepository"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/repository"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/validation"
 	"github.com/segmentio/ksuid"
 )
 
-func RegisterHandler(rep userrepository.Pool, cfg config.Config) http.HandlerFunc {
+func RegisterHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Header.Get("Content-Type") != "application/json" {
@@ -39,7 +40,7 @@ func RegisterHandler(rep userrepository.Pool, cfg config.Config) http.HandlerFun
 
 		err = rep.AddUserAuthData(r.Context(), data.Login, data.Password, ID)
 		if err != nil {
-			if errors.Is(err, userrepository.ErrConflict) {
+			if errors.Is(err, repository.ErrConflict) {
 				w.WriteHeader(http.StatusConflict)
 				return
 			} else {
@@ -59,7 +60,7 @@ func RegisterHandler(rep userrepository.Pool, cfg config.Config) http.HandlerFun
 	}
 }
 
-func LoginHandler(rep userrepository.Pool, cfg config.Config) http.HandlerFunc {
+func LoginHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Header.Get("Content-Type") != "application/json" {
@@ -82,8 +83,13 @@ func LoginHandler(rep userrepository.Pool, cfg config.Config) http.HandlerFunc {
 
 		ID, err := rep.GetUserAuthData(r.Context(), data.Login, data.Password)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return
+			if errors.Is(err, repository.ErrNotExist) {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 
 		token, err := authjwt.EncodeJWT(ID, cfg.JWTSecretKey)
@@ -98,9 +104,52 @@ func LoginHandler(rep userrepository.Pool, cfg config.Config) http.HandlerFunc {
 	}
 }
 
-func PostOrdersHandler() http.HandlerFunc {
+func PostOrdersHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		if r.Header.Get("Content-Type") != "text/plain" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if !validation.OrderValid(string(b)) {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
+
+		token := r.Header.Get("Authorization")
+		userID, err := authjwt.ParseJWTWithClaims(token, cfg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		user, err := rep.GetUserIDbyOrder(r.Context(), string(b))
+		if err != nil {
+			if errors.Is(err, repository.ErrNotExist) {
+				err = rep.AddOrder(r.Context(), userID, string(b))
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusAccepted)
+				return
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		if user == userID {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusConflict)
+		}
 	}
 }
 
@@ -128,7 +177,7 @@ func GetWithdrawalsHandler() http.HandlerFunc {
 	}
 }
 
-func PingDB(rep userrepository.Pool) http.HandlerFunc {
+func PingDB(rep repository.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := rep.PingDb()
 		if err != nil {

@@ -7,12 +7,12 @@ import (
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/handlers"
-	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/userrepository"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/repository"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 )
 
-func StartServer(cfg *config.Config, rep userrepository.Pool) error {
+func StartServer(cfg *config.Config, rep repository.Pool) error {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -21,11 +21,14 @@ func StartServer(cfg *config.Config, rep userrepository.Pool) error {
 	r.Use(handlers.GzipResponse)
 
 	r.Route("/api/user", func(r chi.Router) {
+
 		r.Post("/register", handlers.RegisterHandler(rep, *cfg))
 		r.Post("/login", handlers.LoginHandler(rep, *cfg))
+
 		r.Group(func(r chi.Router) {
 			r.Use(handlers.Auth(*cfg))
-			r.Post("/orders", handlers.PostOrdersHandler())
+
+			r.Post("/orders", handlers.PostOrdersHandler(rep, *cfg))
 			r.Get("/orders", handlers.GetOrdersHandler())
 			r.Get("/balance", handlers.BalanceHandler())
 			r.Post("/balance/withdraw", handlers.PostWithdrawHandler())
