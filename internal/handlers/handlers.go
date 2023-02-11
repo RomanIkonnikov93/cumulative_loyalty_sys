@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"sort"
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/authjwt"
@@ -153,25 +154,56 @@ func PostOrdersHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc 
 	}
 }
 
-func GetOrdersHandler() http.HandlerFunc {
+func GetOrdersHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		token := r.Header.Get("Authorization")
+		userID, err := authjwt.ParseJWTWithClaims(token, cfg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		list, err := rep.GetOrdersByUserID(r.Context(), userID)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotExist) {
+				http.Error(w, err.Error(), http.StatusNoContent)
+				return
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		sort.Slice(list, func(i, j int) bool {
+			return list[i].UploadedAt.After(list[j].UploadedAt)
+		})
+
+		resp, err := json.Marshal(list)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(resp)
+	}
+}
+
+func BalanceHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 	}
 }
 
-func BalanceHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		r.BasicAuth()
-	}
-}
-
-func PostWithdrawHandler() http.HandlerFunc {
+func PostWithdrawHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 	}
 }
 
-func GetWithdrawalsHandler() http.HandlerFunc {
+func GetWithdrawalsHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 	}

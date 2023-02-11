@@ -6,7 +6,7 @@ import (
 
 func OrderValid(order string) bool {
 
-	if order == "" || len(order) < 1 {
+	if len(order) < 1 {
 		return false
 	}
 

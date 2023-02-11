@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/model"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -12,6 +13,7 @@ type Repository interface {
 
 	GetUserIDbyOrder(ctx context.Context, order string) (string, error)
 	AddOrder(ctx context.Context, userID, order string) error
+	GetOrdersByUserID(ctx context.Context, userID string) ([]model.Order, error)
 
 	PingDB(pool *pgxpool.Pool) error
 }

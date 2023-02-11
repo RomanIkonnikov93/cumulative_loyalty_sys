@@ -4,16 +4,13 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/model"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4/pgxpool"
-)
-
-const (
-	ConnectTimeOut = time.Second * 5
-	TimeOut        = time.Second * 3
 )
 
 var (
@@ -27,7 +24,7 @@ type Pool struct {
 
 func NewConnection(cfg config.Config) *pgxpool.Pool {
 
-	ctx, cancel := context.WithTimeout(context.Background(), ConnectTimeOut)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	pool, err := pgxpool.Connect(ctx, cfg.DatabaseURI)
 	if err != nil {
@@ -40,7 +37,7 @@ func NewConnection(cfg config.Config) *pgxpool.Pool {
 func NewRepository(cfg config.Config) (*Pool, error) {
 
 	pool := NewConnection(cfg)
-	ctx, cancel := context.WithTimeout(context.Background(), TimeOut)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	if _, err := pool.Exec(ctx, `
 	create table if not exists users (	    
@@ -52,8 +49,8 @@ func NewRepository(cfg config.Config) (*Pool, error) {
 		user_id varchar(27) not null,
 		order_id text unique not null,
 		order_status text not null default 'NEW',
-		upload_time timestamp not null default current_timestamp,
-		order_accrual text not null default '0.0'
+	    order_accrual text not null default '0.0',
+		upload_time timestamp not null default current_timestamp
 	);
 `); err != nil {
 		return nil, err
@@ -66,7 +63,8 @@ func NewRepository(cfg config.Config) (*Pool, error) {
 
 func (p *Pool) AddUserAuthData(ctx context.Context, login, pass, ID string) error {
 
-	if _, err := p.pool.Exec(ctx, `insert into users (user_login, user_pass, user_id) values ($1, $2, $3)`, login, pass, ID); err != nil {
+	_, err := p.pool.Exec(ctx, `insert into users (user_login, user_pass, user_id) values ($1, $2, $3)`, login, pass, ID)
+	if err != nil {
 		pgerr, ok := err.(*pgconn.PgError)
 		if ok {
 			if pgerr.Code == "23505" {
@@ -106,7 +104,8 @@ func (p *Pool) GetUserIDbyOrder(ctx context.Context, order string) (string, erro
 
 func (p *Pool) AddOrder(ctx context.Context, userID, order string) error {
 
-	if _, err := p.pool.Exec(ctx, `insert into orders (user_id, order_id) values ($1, $2)`, userID, order); err != nil {
+	_, err := p.pool.Exec(ctx, `insert into orders (user_id, order_id) values ($1, $2)`, userID, order)
+	if err != nil {
 		pgerr, ok := err.(*pgconn.PgError)
 		if ok {
 			if pgerr.Code == "23505" {
@@ -120,10 +119,50 @@ func (p *Pool) AddOrder(ctx context.Context, userID, order string) error {
 	return nil
 }
 
+func (p *Pool) GetOrdersByUserID(ctx context.Context, userID string) ([]model.Order, error) {
+
+	rows, err := p.pool.Query(ctx, `select user_id, order_id, order_status, order_accrual, upload_time from orders where user_id=$1`, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	list := make([]model.Order, rows.CommandTag().RowsAffected())
+
+	for rows.Next() {
+
+		var user, accrual string
+		var order model.Order
+
+		err = rows.Scan(&user, &order.Number, &order.Status,
+			&accrual, &order.UploadedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		if accrual != "0.0" {
+			num, err := strconv.ParseFloat(accrual, 64)
+			if err != nil {
+				return nil, err
+			}
+			order.Accrual = num
+		}
+
+		list = append(list, order)
+	}
+
+	if len(list) < 1 {
+		return nil, ErrNotExist
+	}
+
+	return list, nil
+}
+
 func (p *Pool) PingDb() error {
+
 	pool := p.pool
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
 	err := pool.Ping(ctx)
+
 	return err
 }
