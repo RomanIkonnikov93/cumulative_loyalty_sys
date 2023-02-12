@@ -52,6 +52,12 @@ func NewRepository(cfg config.Config) (*Pool, error) {
 	    order_accrual text not null default '0.0',
 		upload_time timestamp not null default current_timestamp
 	);
+	create table if not exists withdrawn (
+	    user_id varchar(27) not null,
+		order_id text not null,
+		order_accrual text not null,
+		processed_time timestamp not null default current_timestamp
+	);
 `); err != nil {
 		return nil, err
 	}
@@ -133,8 +139,7 @@ func (p *Pool) GetOrdersByUserID(ctx context.Context, userID string) ([]model.Or
 		var user, accrual string
 		var order model.Order
 
-		err = rows.Scan(&user, &order.Number, &order.Status,
-			&accrual, &order.UploadedAt)
+		err = rows.Scan(&user, &order.Number, &order.Status, &accrual, &order.UploadedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -157,7 +162,61 @@ func (p *Pool) GetOrdersByUserID(ctx context.Context, userID string) ([]model.Or
 	return list, nil
 }
 
-func (p *Pool) PingDb() error {
+func (p *Pool) GetWithdrawnOrdersByUserID(ctx context.Context, userID string) ([]model.Withdrawn, error) {
+
+	rows, err := p.pool.Query(ctx, `select user_id, order_id, order_accrual, processed_time from withdrawn where user_id=$1`, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	list := make([]model.Withdrawn, rows.CommandTag().RowsAffected())
+
+	for rows.Next() {
+
+		var user, accrual string
+		var order model.Withdrawn
+
+		err = rows.Scan(&user, &order.Order, &accrual, &order.ProcessedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		if accrual != "0.0" {
+			num, err := strconv.ParseFloat(accrual, 64)
+			if err != nil {
+				return nil, err
+			}
+			order.Accrual = num
+		}
+
+		list = append(list, order)
+	}
+
+	if len(list) < 1 {
+		return nil, ErrNotExist
+	}
+
+	return list, nil
+}
+
+func (p *Pool) AddWithdrawnOrder(ctx context.Context, userID, order, sum string) error {
+
+	_, err := p.pool.Exec(ctx, `insert into withdrawn (user_id, order_id, order_accrual) values ($1, $2, $3)`, userID, order, sum)
+	if err != nil {
+		pgerr, ok := err.(*pgconn.PgError)
+		if ok {
+			if pgerr.Code == "23505" {
+				return ErrConflict
+			}
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+func (p *Pool) PingDB() error {
 
 	pool := p.pool
 	ctx, stop := context.WithCancel(context.Background())

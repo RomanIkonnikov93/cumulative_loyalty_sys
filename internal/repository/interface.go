@@ -14,6 +14,8 @@ type Repository interface {
 	GetUserIDbyOrder(ctx context.Context, order string) (string, error)
 	AddOrder(ctx context.Context, userID, order string) error
 	GetOrdersByUserID(ctx context.Context, userID string) ([]model.Order, error)
+	GetWithdrawnOrdersByUserID(ctx context.Context, userID string) ([]model.Withdrawn, error)
+	AddWithdrawnOrder(ctx context.Context, userID, order, sum string) error
 
 	PingDB(pool *pgxpool.Pool) error
 }

@@ -1,24 +1,24 @@
 package validation
 
 import (
+	"errors"
 	"strconv"
 )
 
-func OrderValid(order string) bool {
+func OrderValid(order string) (bool, error) {
 
 	if len(order) < 1 {
-		return false
+		return false, errors.New("400")
 	}
 
 	num, err := strconv.Atoi(order)
 	if err != nil {
-		return false
+		return false, errors.New("400")
 	}
 
 	res := LuhnValid(num)
 
-	return res
-
+	return res, nil
 }
 
 // Valid check number is valid or not based on Luhn algorithm

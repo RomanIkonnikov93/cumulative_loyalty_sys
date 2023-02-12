@@ -33,7 +33,7 @@ func StartServer(cfg *config.Config, rep repository.Pool) error {
 			r.Get("/balance", handlers.BalanceHandler(rep, *cfg))
 			r.Post("/balance/withdraw", handlers.PostWithdrawHandler(rep, *cfg))
 			r.Get("/withdrawals", handlers.GetWithdrawalsHandler(rep, *cfg))
-			r.Get("/ping", handlers.PingDB(rep))
+			r.Get("/ping", handlers.PingDataBase(rep))
 		})
 	})
 

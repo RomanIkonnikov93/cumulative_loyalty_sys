@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"sort"
@@ -119,7 +120,12 @@ func PostOrdersHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc 
 			return
 		}
 
-		if !validation.OrderValid(string(b)) {
+		val, err := validation.OrderValid(string(b))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if !val {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			return
 		}
@@ -194,24 +200,193 @@ func GetOrdersHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 func BalanceHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		token := r.Header.Get("Authorization")
+		userID, err := authjwt.ParseJWTWithClaims(token, cfg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		list, err := rep.GetOrdersByUserID(r.Context(), userID)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotExist) {
+				list = append(list, model.Order{
+					Accrual: 0.0,
+				})
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		current := 0.0
+		for _, order := range list {
+			current += order.Accrual
+		}
+
+		wList, err := rep.GetWithdrawnOrdersByUserID(r.Context(), userID)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotExist) {
+				wList = append(wList, model.Withdrawn{
+					Accrual: 0.0,
+				})
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		withdrawn := 0.0
+		for _, order := range wList {
+			withdrawn += order.Accrual
+		}
+
+		data := model.Response{
+			Current:   current,
+			Withdrawn: withdrawn,
+		}
+
+		resp, err := json.Marshal(data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(resp)
+
 	}
 }
 
 func PostWithdrawHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		if r.Header.Get("Content-Type") != "application/json" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		data := model.WriteOff{}
+		err = json.Unmarshal(b, &data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		val, err := validation.OrderValid(data.Order)
+		if err != nil {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
+		if !val {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
+
+		token := r.Header.Get("Authorization")
+		userID, err := authjwt.ParseJWTWithClaims(token, cfg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		list, err := rep.GetOrdersByUserID(r.Context(), userID)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotExist) {
+				list = append(list, model.Order{
+					Accrual: 0.0,
+				})
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		current := 0.0
+		for _, order := range list {
+			current += order.Accrual
+		}
+
+		wList, err := rep.GetWithdrawnOrdersByUserID(r.Context(), userID)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotExist) {
+				wList = append(wList, model.Withdrawn{
+					Accrual: 0.0,
+				})
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		withdrawn := 0.0
+		for _, order := range wList {
+			withdrawn += order.Accrual
+		}
+
+		balance := current - withdrawn
+		if balance < data.Sum {
+			w.WriteHeader(http.StatusPaymentRequired)
+			return
+		}
+
+		err = rep.AddWithdrawnOrder(r.Context(), userID, data.Order, fmt.Sprintf("%g", data.Sum))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
 func GetWithdrawalsHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		token := r.Header.Get("Authorization")
+		userID, err := authjwt.ParseJWTWithClaims(token, cfg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		list, err := rep.GetWithdrawnOrdersByUserID(r.Context(), userID)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotExist) {
+				http.Error(w, err.Error(), http.StatusNoContent)
+				return
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		sort.Slice(list, func(i, j int) bool {
+			return list[i].ProcessedAt.After(list[j].ProcessedAt)
+		})
+
+		resp, err := json.Marshal(list)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(resp)
 	}
 }
 
-func PingDB(rep repository.Pool) http.HandlerFunc {
+func PingDataBase(rep repository.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := rep.PingDb()
+		err := rep.PingDB()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
