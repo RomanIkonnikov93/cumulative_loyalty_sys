@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 )
 
-func StartServer(cfg *config.Config, rep repository.Pool) error {
+func StartServer(rep repository.Pool, cfg config.Config) error {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -22,17 +22,17 @@ func StartServer(cfg *config.Config, rep repository.Pool) error {
 
 	r.Route("/api/user", func(r chi.Router) {
 
-		r.Post("/register", handlers.RegisterHandler(rep, *cfg))
-		r.Post("/login", handlers.LoginHandler(rep, *cfg))
+		r.Post("/register", handlers.RegisterHandler(rep, cfg))
+		r.Post("/login", handlers.LoginHandler(rep, cfg))
 
 		r.Group(func(r chi.Router) {
-			r.Use(handlers.Auth(*cfg))
+			r.Use(handlers.Auth(cfg))
 
-			r.Post("/orders", handlers.PostOrdersHandler(rep, *cfg))
-			r.Get("/orders", handlers.GetOrdersHandler(rep, *cfg))
-			r.Get("/balance", handlers.BalanceHandler(rep, *cfg))
-			r.Post("/balance/withdraw", handlers.PostWithdrawHandler(rep, *cfg))
-			r.Get("/withdrawals", handlers.GetWithdrawalsHandler(rep, *cfg))
+			r.Post("/orders", handlers.PostOrdersHandler(rep, cfg))
+			r.Get("/orders", handlers.GetOrdersHandler(rep, cfg))
+			r.Get("/balance", handlers.BalanceHandler(rep, cfg))
+			r.Post("/balance/withdraw", handlers.PostWithdrawHandler(rep, cfg))
+			r.Get("/withdrawals", handlers.GetWithdrawalsHandler(rep, cfg))
 			r.Get("/ping", handlers.PingDataBase(rep))
 		})
 	})

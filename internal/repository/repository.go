@@ -18,13 +18,15 @@ var (
 	ErrNotExist = errors.New("not exist")
 )
 
+const TimeOut = time.Second * 5
+
 type Pool struct {
 	pool *pgxpool.Pool
 }
 
 func NewConnection(cfg config.Config) *pgxpool.Pool {
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), TimeOut)
 	defer cancel()
 	pool, err := pgxpool.Connect(ctx, cfg.DatabaseURI)
 	if err != nil {
@@ -37,7 +39,7 @@ func NewConnection(cfg config.Config) *pgxpool.Pool {
 func NewRepository(cfg config.Config) (*Pool, error) {
 
 	pool := NewConnection(cfg)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), TimeOut)
 	defer cancel()
 	if _, err := pool.Exec(ctx, `
 	create table if not exists users (	    
@@ -160,6 +162,49 @@ func (p *Pool) GetOrdersByUserID(ctx context.Context, userID string) ([]model.Or
 	}
 
 	return list, nil
+}
+
+func (p *Pool) GetOrdersForScanner() ([]model.Order, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), TimeOut)
+	defer cancel()
+
+	rows, err := p.pool.Query(ctx,
+		`select order_id, order_status from orders where order_status=$1 or order_status=$2 or order_status=$3 `,
+		"NEW", "REGISTERED", "PROCESSING")
+	if err != nil {
+		return nil, err
+	}
+
+	list := make([]model.Order, rows.CommandTag().RowsAffected())
+
+	for rows.Next() {
+		var status string
+		var order model.Order
+
+		err = rows.Scan(&order.Number, &status)
+		if err != nil {
+			return nil, err
+		}
+
+		list = append(list, order)
+	}
+
+	if len(list) < 1 {
+		return nil, ErrNotExist
+	}
+
+	return list, nil
+}
+
+func (p *Pool) UpdateOrderData(ctx context.Context, status, accrual, order string) error {
+
+	_, err := p.pool.Exec(ctx, `update orders set order_status = $1 , order_accrual = $2 where order_id = $3`, status, accrual, order)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (p *Pool) GetWithdrawnOrdersByUserID(ctx context.Context, userID string) ([]model.Withdrawn, error) {

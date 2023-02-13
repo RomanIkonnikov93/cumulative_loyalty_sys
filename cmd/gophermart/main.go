@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/repository"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/scanner"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/server"
 )
 
@@ -20,7 +22,16 @@ func main() {
 		log.Fatal("NewRepository: ", err)
 	}
 
-	err = server.StartServer(cfg, *rep)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		err = scanner.Loop(ctx, *rep, *cfg)
+		if err != nil {
+			log.Fatal("scanner.Loop", err)
+		}
+	}()
+
+	err = server.StartServer(*rep, *cfg)
 	if err != nil {
 		log.Fatal("StartServer: ", err)
 	}
