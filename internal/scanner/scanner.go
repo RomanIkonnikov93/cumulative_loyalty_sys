@@ -76,13 +76,8 @@ func UpdateOrders(rep repository.Pool, cfg config.Config, order string) (time.Du
 
 	log.Printf("UpdateOrdersResp:%v", resp)
 
-	if resp.StatusCode == http.StatusTooManyRequests {
-		t := resp.Header.Get("Retry-After")
-		dur, err := time.ParseDuration(t)
-		if err != nil {
-			dur = repository.TimeOut
-		}
-		return dur, Err409
+	if resp.StatusCode == http.StatusNoContent {
+		return 0, nil
 	}
 
 	b, err := io.ReadAll(resp.Body)
@@ -101,6 +96,15 @@ func UpdateOrders(rep repository.Pool, cfg config.Config, order string) (time.Du
 	err = rep.UpdateOrderData(ctx, data.Status, fmt.Sprintf("%g", data.Accrual), data.Order)
 	if err != nil {
 		return 0, nil
+	}
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		t := resp.Header.Get("Retry-After")
+		dur, err := time.ParseDuration(t)
+		if err != nil {
+			dur = repository.TimeOut
+		}
+		return dur, Err409
 	}
 
 	return 0, nil

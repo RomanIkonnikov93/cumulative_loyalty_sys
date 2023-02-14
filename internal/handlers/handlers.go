@@ -391,7 +391,7 @@ func GetWithdrawalsHandler(rep repository.Pool, cfg config.Config) http.HandlerF
 			return
 		}
 
-		log.Printf("GetWithdrawals:%v,%v,%v", userID, list)
+		log.Printf("GetWithdrawals:%v,%v", userID, list)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
