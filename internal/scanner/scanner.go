@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -20,7 +21,7 @@ var (
 
 func Loop(ctx context.Context, rep repository.Pool, cfg config.Config) error {
 
-	ticker := time.NewTicker(time.Millisecond * 100)
+	ticker := time.NewTicker(time.Millisecond * 500)
 	for {
 		select {
 		case <-ticker.C:
@@ -36,6 +37,12 @@ func Scanner(rep repository.Pool, cfg config.Config) error {
 	list, err := rep.GetOrdersForScanner()
 	if err != nil {
 		return err
+	}
+
+	log.Printf("Scanner:%v", list)
+
+	if len(list) < 1 {
+		return nil
 	}
 
 	for _, order := range list {
@@ -67,6 +74,8 @@ func UpdateOrders(rep repository.Pool, cfg config.Config, order string) (time.Du
 	}
 	defer resp.Body.Close()
 
+	log.Printf("UpdateOrdersResp:%v", resp)
+
 	if resp.StatusCode == http.StatusTooManyRequests {
 		t := resp.Header.Get("Retry-After")
 		dur, err := time.ParseDuration(t)
@@ -86,6 +95,8 @@ func UpdateOrders(rep repository.Pool, cfg config.Config, order string) (time.Du
 	if err != nil {
 		return 0, err
 	}
+
+	log.Printf("UpdateOrderData:%v", data)
 
 	err = rep.UpdateOrderData(ctx, data.Status, fmt.Sprintf("%g", data.Accrual), data.Order)
 	if err != nil {

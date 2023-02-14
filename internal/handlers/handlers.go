@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sort"
 
@@ -57,6 +58,8 @@ func RegisterHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 			return
 		}
 
+		log.Printf("Register:%v,%v", ID, data)
+
 		w.Header().Set("Authorization", token)
 		w.WriteHeader(http.StatusOK)
 	}
@@ -100,6 +103,8 @@ func LoginHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 			return
 		}
 
+		log.Printf("Login:%v,%v", ID, data)
+
 		w.Header().Set("Authorization", token)
 		w.WriteHeader(http.StatusOK)
 
@@ -136,6 +141,8 @@ func PostOrdersHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc 
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		log.Printf("PostOrders:%v,%v", userID, string(b))
 
 		user, err := rep.GetUserIDbyOrder(r.Context(), string(b))
 		if err != nil {
@@ -184,6 +191,8 @@ func GetOrdersHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 		sort.Slice(list, func(i, j int) bool {
 			return list[i].UploadedAt.After(list[j].UploadedAt)
 		})
+
+		log.Printf("GetOrders:%v,%v", userID, list)
 
 		resp, err := json.Marshal(list)
 		if err != nil {
@@ -251,6 +260,8 @@ func BalanceHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		log.Printf("Balance:%v,%v", userID, data)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -337,6 +348,8 @@ func PostWithdrawHandler(rep repository.Pool, cfg config.Config) http.HandlerFun
 			return
 		}
 
+		log.Printf("PostWithdraw:%v,%v,%v", userID, data, balance)
+
 		err = rep.AddWithdrawnOrder(r.Context(), userID, data.Order, fmt.Sprintf("%g", data.Sum))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -377,6 +390,8 @@ func GetWithdrawalsHandler(rep repository.Pool, cfg config.Config) http.HandlerF
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		log.Printf("GetWithdrawals:%v,%v,%v", userID, list)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
