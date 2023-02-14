@@ -18,7 +18,7 @@ var (
 	ErrNotExist = errors.New("not exist")
 )
 
-const TimeOut = time.Second * 5
+const TimeOut = time.Second * 10
 
 type Pool struct {
 	pool *pgxpool.Pool
