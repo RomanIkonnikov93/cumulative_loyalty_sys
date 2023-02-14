@@ -64,9 +64,7 @@ func UpdateOrders(rep repository.Pool, cfg config.Config, order string) (time.Du
 	ctx, cansel := context.WithTimeout(context.Background(), repository.TimeOut)
 	defer cansel()
 
-	log.Printf("AccrualSystemAddress:%v", cfg.AccrualSystemAddress)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+cfg.AccrualSystemAddress+"/api/orders/"+order, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.AccrualSystemAddress+"/api/orders/"+order, nil)
 	if err != nil {
 		return 0, err
 	}
