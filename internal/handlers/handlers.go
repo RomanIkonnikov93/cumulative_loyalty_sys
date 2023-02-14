@@ -251,7 +251,7 @@ func BalanceHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 		}
 
 		data := model.Response{
-			Current:   current,
+			Current:   current - withdrawn,
 			Withdrawn: withdrawn,
 		}
 

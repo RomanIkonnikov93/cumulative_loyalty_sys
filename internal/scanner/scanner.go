@@ -21,7 +21,7 @@ var (
 
 func Loop(ctx context.Context, rep repository.Pool, cfg config.Config) error {
 
-	ticker := time.NewTicker(time.Millisecond * 500)
+	ticker := time.NewTicker(time.Millisecond * 100)
 	for {
 		select {
 		case <-ticker.C:
