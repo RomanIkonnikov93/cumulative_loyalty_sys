@@ -25,9 +25,9 @@ func Loop(ctx context.Context, rep repository.Pool, cfg config.Config) error {
 	for {
 		select {
 		case <-ticker.C:
-			Scanner(rep, cfg)
+			_ = Scanner(rep, cfg)
 		case <-ctx.Done():
-			return errors.New("loop scanner stopped")
+			return nil
 		}
 	}
 }
