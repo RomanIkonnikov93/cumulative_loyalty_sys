@@ -11,11 +11,11 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-type RepositoryOrd struct {
+type Repository struct {
 	pool *pgxpool.Pool
 }
 
-func NewRepository(cfg config.Config) (*RepositoryOrd, error) {
+func NewRepository(cfg config.Config) (*Repository, error) {
 
 	pool := conn.NewConnection(cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), model.TimeOut)
@@ -32,12 +32,12 @@ func NewRepository(cfg config.Config) (*RepositoryOrd, error) {
 		return nil, err
 	}
 
-	return &RepositoryOrd{
+	return &Repository{
 		pool: pool,
 	}, nil
 }
 
-func (p *RepositoryOrd) GetUserIDbyOrder(ctx context.Context, order string) (string, error) {
+func (p *Repository) GetUserIDbyOrder(ctx context.Context, order string) (string, error) {
 
 	user, ord := "", ""
 	err := p.pool.QueryRow(ctx, `select user_id, order_id from orders where order_id = $1`, order).
@@ -49,7 +49,7 @@ func (p *RepositoryOrd) GetUserIDbyOrder(ctx context.Context, order string) (str
 	return user, nil
 }
 
-func (p *RepositoryOrd) AddOrder(ctx context.Context, userID, order string) error {
+func (p *Repository) AddOrder(ctx context.Context, userID, order string) error {
 
 	_, err := p.pool.Exec(ctx, `insert into orders (user_id, order_id) values ($1, $2)`, userID, order)
 	if err != nil {
@@ -66,7 +66,7 @@ func (p *RepositoryOrd) AddOrder(ctx context.Context, userID, order string) erro
 	return nil
 }
 
-func (p *RepositoryOrd) GetOrdersByUserID(ctx context.Context, userID string) ([]model.Order, error) {
+func (p *Repository) GetOrdersByUserID(ctx context.Context, userID string) ([]model.Order, error) {
 
 	rows, err := p.pool.Query(ctx, `select user_id, order_id, order_status, order_accrual, upload_time from orders where user_id=$1`, userID)
 	if err != nil {
@@ -103,7 +103,7 @@ func (p *RepositoryOrd) GetOrdersByUserID(ctx context.Context, userID string) ([
 	return list, nil
 }
 
-func (p *RepositoryOrd) GetOrdersForScanner() ([]model.Order, error) {
+func (p *Repository) GetOrdersForScanner() ([]model.Order, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), model.TimeOut)
 	defer cancel()
@@ -136,7 +136,7 @@ func (p *RepositoryOrd) GetOrdersForScanner() ([]model.Order, error) {
 	return list, nil
 }
 
-func (p *RepositoryOrd) UpdateOrderData(ctx context.Context, status, accrual, order string) error {
+func (p *Repository) UpdateOrderData(ctx context.Context, status, accrual, order string) error {
 
 	_, err := p.pool.Exec(ctx, `update orders set order_status = $1 , order_accrual = $2 where order_id = $3`, status, accrual, order)
 	if err != nil {

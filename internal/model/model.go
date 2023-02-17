@@ -6,9 +6,10 @@ import (
 )
 
 var (
-	ErrConflict = errors.New("conflict on insert")
-	ErrNotExist = errors.New("not exist")
-	Err409      = errors.New("too many requests")
+	ErrConflict  = errors.New("conflict on insert")
+	ErrNotExist  = errors.New("not exist")
+	Err409       = errors.New("too many requests")
+	ErrWrongPass = errors.New("wrong password")
 )
 
 const TimeOut = time.Second * 10

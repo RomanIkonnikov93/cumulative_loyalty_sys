@@ -6,39 +6,38 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/model"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/repository"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/logging"
 )
 
-func Loop(ctx context.Context, rep repository.Pool, cfg config.Config) error {
+func Loop(ctx context.Context, rep repository.Pool, cfg config.Config, logger logging.Logger) {
 
 	ticker := time.NewTicker(time.Millisecond * 100)
 	for {
 		select {
 		case <-ticker.C:
-			_ = Scanner(rep, cfg)
+			scanner(rep, cfg, logger)
 		case <-ctx.Done():
-			return nil
+			logger.Info("Loop stopped")
+			return
 		}
 	}
 }
 
-func Scanner(rep repository.Pool, cfg config.Config) error {
+func scanner(rep repository.Pool, cfg config.Config, logger logging.Logger) {
 
 	list, err := rep.Orders.GetOrdersForScanner()
 	if err != nil {
-		return err
+		logger.Printf("scanner:%v", err)
 	}
 
-	log.Printf("Scanner:%v", list)
-
 	if len(list) < 1 {
-		return nil
+		return
 	}
 
 	for _, order := range list {
@@ -48,11 +47,11 @@ func Scanner(rep repository.Pool, cfg config.Config) error {
 				time.Sleep(dur)
 				continue
 			} else {
-				return err
+				return
 			}
 		}
 	}
-	return nil
+	return
 }
 
 func updateOrders(rep repository.Pool, cfg config.Config, order string) (time.Duration, error) {
@@ -70,8 +69,6 @@ func updateOrders(rep repository.Pool, cfg config.Config, order string) (time.Du
 	}
 	defer resp.Body.Close()
 
-	log.Printf("UpdateOrdersResp:%v", resp)
-
 	if resp.StatusCode == http.StatusNoContent {
 		return 0, nil
 	}
@@ -86,8 +83,6 @@ func updateOrders(rep repository.Pool, cfg config.Config, order string) (time.Du
 	if err != nil {
 		return 0, err
 	}
-
-	log.Printf("UpdateOrderData:%v", data)
 
 	err = rep.Orders.UpdateOrderData(ctx, data.Status, fmt.Sprintf("%g", data.Accrual), data.Order)
 	if err != nil {

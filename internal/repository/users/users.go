@@ -5,16 +5,17 @@ import (
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/conn"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/crypt"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/model"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-type RepositoryUsr struct {
+type Repository struct {
 	pool *pgxpool.Pool
 }
 
-func NewRepository(cfg config.Config) (*RepositoryUsr, error) {
+func NewRepository(cfg config.Config) (*Repository, error) {
 
 	pool := conn.NewConnection(cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), model.TimeOut)
@@ -29,14 +30,19 @@ func NewRepository(cfg config.Config) (*RepositoryUsr, error) {
 		return nil, err
 	}
 
-	return &RepositoryUsr{
+	return &Repository{
 		pool: pool,
 	}, nil
 }
 
-func (p *RepositoryUsr) AddUserAuthData(ctx context.Context, login, pass, ID string) error {
+func (p *Repository) AddUserAuthData(ctx context.Context, login, pass, ID string) error {
 
-	_, err := p.pool.Exec(ctx, `insert into users (user_login, user_pass, user_id) values ($1, $2, $3)`, login, pass, ID)
+	hash, err := crypt.HashPassword(pass)
+	if err != nil {
+		return err
+	}
+
+	_, err = p.pool.Exec(ctx, `insert into users (user_login, user_pass, user_id) values ($1, $2, $3)`, login, hash, ID)
 	if err != nil {
 		pgerr, ok := err.(*pgconn.PgError)
 		if ok {
@@ -51,19 +57,23 @@ func (p *RepositoryUsr) AddUserAuthData(ctx context.Context, login, pass, ID str
 	return nil
 }
 
-func (p *RepositoryUsr) GetUserAuthData(ctx context.Context, login, pass string) (string, error) {
+func (p *Repository) GetUserAuthData(ctx context.Context, login, pass string) (string, error) {
 
 	l, ps, ID := "", "", ""
-	err := p.pool.QueryRow(ctx, `select user_login, user_pass, user_id from users where user_login = $1 and user_pass = $2`, login, pass).
+	err := p.pool.QueryRow(ctx, `select user_login, user_pass, user_id from users where user_login = $1`, login).
 		Scan(&l, &ps, &ID)
 	if err != nil {
 		return "", model.ErrNotExist
 	}
 
+	if !crypt.CheckPasswordHash(pass, ps) {
+		return "", model.ErrWrongPass
+	}
+
 	return ID, nil
 }
 
-func (p *RepositoryUsr) PingDB() error {
+func (p *Repository) PingDB() error {
 
 	pool := p.pool
 	ctx, stop := context.WithCancel(context.Background())

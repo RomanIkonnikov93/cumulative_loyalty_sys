@@ -3,16 +3,16 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/authjwt"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/model"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/repository"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/logging"
 )
 
-func BalanceHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
+func BalanceHandler(rep repository.Pool, cfg config.Config, logger logging.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		token := r.Header.Get("Authorization")
@@ -67,11 +67,8 @@ func BalanceHandler(rep repository.Pool, cfg config.Config) http.HandlerFunc {
 			return
 		}
 
-		log.Printf("Balance:%v,%v", userID, data)
-
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(resp)
-
 	}
 }

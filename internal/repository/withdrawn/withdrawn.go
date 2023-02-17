@@ -11,11 +11,11 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-type RepositoryWD struct {
+type Repository struct {
 	pool *pgxpool.Pool
 }
 
-func NewRepository(cfg config.Config) (*RepositoryWD, error) {
+func NewRepository(cfg config.Config) (*Repository, error) {
 
 	pool := conn.NewConnection(cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), model.TimeOut)
@@ -31,12 +31,12 @@ func NewRepository(cfg config.Config) (*RepositoryWD, error) {
 		return nil, err
 	}
 
-	return &RepositoryWD{
+	return &Repository{
 		pool: pool,
 	}, nil
 }
 
-func (p *RepositoryWD) GetWithdrawnOrdersByUserID(ctx context.Context, userID string) ([]model.Withdrawn, error) {
+func (p *Repository) GetWithdrawnOrdersByUserID(ctx context.Context, userID string) ([]model.Withdrawn, error) {
 
 	rows, err := p.pool.Query(ctx, `select user_id, order_id, order_accrual, processed_time from withdrawn where user_id=$1`, userID)
 	if err != nil {
@@ -73,7 +73,7 @@ func (p *RepositoryWD) GetWithdrawnOrdersByUserID(ctx context.Context, userID st
 	return list, nil
 }
 
-func (p *RepositoryWD) AddWithdrawnOrder(ctx context.Context, userID, order, sum string) error {
+func (p *Repository) AddWithdrawnOrder(ctx context.Context, userID, order, sum string) error {
 
 	_, err := p.pool.Exec(ctx, `insert into withdrawn (user_id, order_id, order_accrual) values ($1, $2, $3)`, userID, order, sum)
 	if err != nil {

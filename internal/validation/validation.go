@@ -21,7 +21,7 @@ func OrderValid(order string) (bool, error) {
 	return res, nil
 }
 
-// Valid check number is valid or not based on Luhn algorithm
+// LuhnValid check number is valid or not based on Luhn algorithm
 func LuhnValid(number int) bool {
 	return (number%10+checksum(number/10))%10 == 0
 }

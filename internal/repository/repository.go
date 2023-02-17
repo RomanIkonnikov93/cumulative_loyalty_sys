@@ -8,9 +8,9 @@ import (
 )
 
 type Pool struct {
-	Users     *users.RepositoryUsr
-	Orders    *orders.RepositoryOrd
-	Withdrawn *withdrawn.RepositoryWD
+	Users     *users.Repository
+	Orders    *orders.Repository
+	Withdrawn *withdrawn.Repository
 }
 
 func NewReps(cfg config.Config) (*Pool, error) {
