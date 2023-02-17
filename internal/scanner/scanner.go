@@ -15,10 +15,6 @@ import (
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/repository"
 )
 
-var (
-	Err409 = errors.New("too many requests")
-)
-
 func Loop(ctx context.Context, rep repository.Pool, cfg config.Config) error {
 
 	ticker := time.NewTicker(time.Millisecond * 100)
@@ -34,7 +30,7 @@ func Loop(ctx context.Context, rep repository.Pool, cfg config.Config) error {
 
 func Scanner(rep repository.Pool, cfg config.Config) error {
 
-	list, err := rep.GetOrdersForScanner()
+	list, err := rep.Orders.GetOrdersForScanner()
 	if err != nil {
 		return err
 	}
@@ -46,9 +42,9 @@ func Scanner(rep repository.Pool, cfg config.Config) error {
 	}
 
 	for _, order := range list {
-		dur, err := UpdateOrders(rep, cfg, order.Number)
+		dur, err := updateOrders(rep, cfg, order.Number)
 		if err != nil {
-			if errors.Is(err, Err409) {
+			if errors.Is(err, model.Err409) {
 				time.Sleep(dur)
 				continue
 			} else {
@@ -59,9 +55,9 @@ func Scanner(rep repository.Pool, cfg config.Config) error {
 	return nil
 }
 
-func UpdateOrders(rep repository.Pool, cfg config.Config, order string) (time.Duration, error) {
+func updateOrders(rep repository.Pool, cfg config.Config, order string) (time.Duration, error) {
 
-	ctx, cansel := context.WithTimeout(context.Background(), repository.TimeOut)
+	ctx, cansel := context.WithTimeout(context.Background(), model.TimeOut)
 	defer cansel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.AccrualSystemAddress+"/api/orders/"+order, nil)
@@ -93,7 +89,7 @@ func UpdateOrders(rep repository.Pool, cfg config.Config, order string) (time.Du
 
 	log.Printf("UpdateOrderData:%v", data)
 
-	err = rep.UpdateOrderData(ctx, data.Status, fmt.Sprintf("%g", data.Accrual), data.Order)
+	err = rep.Orders.UpdateOrderData(ctx, data.Status, fmt.Sprintf("%g", data.Accrual), data.Order)
 	if err != nil {
 		return 0, nil
 	}
@@ -102,9 +98,9 @@ func UpdateOrders(rep repository.Pool, cfg config.Config, order string) (time.Du
 		t := resp.Header.Get("Retry-After")
 		dur, err := time.ParseDuration(t)
 		if err != nil {
-			dur = repository.TimeOut
+			dur = model.TimeOut
 		}
-		return dur, Err409
+		return dur, model.Err409
 	}
 
 	return 0, nil

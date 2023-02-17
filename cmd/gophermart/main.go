@@ -17,9 +17,9 @@ func main() {
 		log.Fatal("GetConfig: ", err)
 	}
 
-	rep, err := repository.NewRepository(*cfg)
+	rep, err := repository.NewReps(*cfg)
 	if err != nil {
-		log.Fatal("NewRepository: ", err)
+		log.Fatal("NewReps: ", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

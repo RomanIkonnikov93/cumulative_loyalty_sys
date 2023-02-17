@@ -1,4 +1,4 @@
-package handlers
+package gzipmid
 
 import (
 	"bytes"
@@ -8,12 +8,12 @@ import (
 	"net/http"
 )
 
-type gzipWriter struct {
+type GzipWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
 }
 
-func (w gzipWriter) Write(b []byte) (int, error) {
+func (w GzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 

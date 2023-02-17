@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/handlers/gzipmid"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -23,11 +24,7 @@ func Auth(cfg config.Config) func(next http.Handler) http.Handler {
 				tkn, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 					return []byte(cfg.JWTSecretKey), nil
 				})
-				if err != nil {
-					w.WriteHeader(http.StatusUnauthorized)
-					return
-				}
-				if !tkn.Valid {
+				if err != nil || !tkn.Valid {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
 				} else {
@@ -49,7 +46,7 @@ func GzipResponse(next http.Handler) http.Handler {
 			}
 			defer gz.Close()
 			w.Header().Set("Content-Encoding", "gzip")
-			next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
+			next.ServeHTTP(gzipmid.GzipWriter{ResponseWriter: w, Writer: gz}, r)
 		} else {
 			next.ServeHTTP(w, r)
 			return
@@ -65,7 +62,7 @@ func GzipRequest(next http.Handler) http.Handler {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			data, err := DecompressGZIP(b)
+			data, err := gzipmid.DecompressGZIP(b)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

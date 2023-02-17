@@ -1,8 +1,17 @@
 package model
 
 import (
+	"errors"
 	"time"
 )
+
+var (
+	ErrConflict = errors.New("conflict on insert")
+	ErrNotExist = errors.New("not exist")
+	Err409      = errors.New("too many requests")
+)
+
+const TimeOut = time.Second * 10
 
 type UserAuth struct {
 	Login    string `json:"login"`
