@@ -76,9 +76,7 @@ func Log() *logrus.Entry {
 
 	l.SetLevel(logrus.TraceLevel)
 
-	var e *logrus.Entry
-
-	e = logrus.NewEntry(l)
+	e := logrus.NewEntry(l)
 
 	return e
 }
