@@ -51,7 +51,6 @@ func scanner(rep repository.Pool, cfg config.Config, logger logging.Logger) {
 			}
 		}
 	}
-	return
 }
 
 func updateOrders(rep repository.Pool, cfg config.Config, order string) (time.Duration, error) {
