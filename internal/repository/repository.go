@@ -11,6 +11,7 @@ type Pool struct {
 	Users     *users.Repository
 	Orders    *orders.Repository
 	Withdrawn *withdrawn.Repository
+	Ping      *Ping
 }
 
 func NewReps(cfg config.Config) (*Pool, error) {
@@ -30,9 +31,15 @@ func NewReps(cfg config.Config) (*Pool, error) {
 		return nil, err
 	}
 
+	p, err := NewPing(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Pool{
 		Users:     u,
 		Orders:    o,
 		Withdrawn: w,
+		Ping:      p,
 	}, nil
 }

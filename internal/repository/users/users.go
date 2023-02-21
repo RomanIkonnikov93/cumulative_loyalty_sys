@@ -72,13 +72,3 @@ func (p *Repository) GetUserAuthData(ctx context.Context, login, pass string) (s
 
 	return ID, nil
 }
-
-func (p *Repository) PingDB() error {
-
-	pool := p.pool
-	ctx, stop := context.WithCancel(context.Background())
-	defer stop()
-	err := pool.Ping(ctx)
-
-	return err
-}
