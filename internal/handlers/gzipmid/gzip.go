@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
-	"log"
 	"net/http"
+
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/logging"
 )
 
 type GzipWriter struct {
@@ -19,15 +20,17 @@ func (w GzipWriter) Write(b []byte) (int, error) {
 
 func DecompressGZIP(data []byte) ([]byte, error) {
 
+	logger := logging.GetLogger()
+
 	r, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
-		log.Printf("%v", err)
+		logger.Error(err)
 	}
 	defer r.Close()
 
 	b, err := io.ReadAll(r)
 	if err != nil {
-		log.Printf("%v", err)
+		logger.Error(err)
 	}
 
 	return b, nil

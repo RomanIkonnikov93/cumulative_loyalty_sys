@@ -18,6 +18,7 @@ func BalanceHandler(rep repository.Pool, cfg config.Config, logger logging.Logge
 		token := r.Header.Get("Authorization")
 		userID, err := authjwt.ParseJWTWithClaims(token, cfg)
 		if err != nil {
+			logger.Error(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -29,6 +30,7 @@ func BalanceHandler(rep repository.Pool, cfg config.Config, logger logging.Logge
 					Accrual: 0.0,
 				})
 			} else {
+				logger.Error(err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -46,6 +48,7 @@ func BalanceHandler(rep repository.Pool, cfg config.Config, logger logging.Logge
 					Accrual: 0.0,
 				})
 			} else {
+				logger.Error(err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -63,6 +66,7 @@ func BalanceHandler(rep repository.Pool, cfg config.Config, logger logging.Logge
 
 		resp, err := json.Marshal(data)
 		if err != nil {
+			logger.Error(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

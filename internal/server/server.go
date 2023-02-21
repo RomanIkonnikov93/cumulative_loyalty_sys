@@ -1,8 +1,6 @@
 package server
 
 import (
-	"log"
-
 	"net/http"
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
@@ -27,7 +25,7 @@ func StartServer(rep repository.Pool, cfg config.Config, logger logging.Logger) 
 		r.Post("/login", handlers.LoginHandler(rep, cfg, logger))
 
 		r.Group(func(r chi.Router) {
-			r.Use(handlers.Auth(cfg))
+			r.Use(handlers.Auth(cfg, logger))
 
 			r.Post("/orders", handlers.PostOrdersHandler(rep, cfg, logger))
 			r.Get("/orders", handlers.GetOrdersHandler(rep, cfg, logger))
@@ -41,7 +39,7 @@ func StartServer(rep repository.Pool, cfg config.Config, logger logging.Logger) 
 	logger.Info("server running")
 	err := http.ListenAndServe(cfg.RunAddress, r)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		logger.Fatal("ListenAndServe: ", err)
 	}
 
 	return nil

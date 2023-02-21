@@ -8,15 +8,17 @@ import (
 
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/cmd/config"
 	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/handlers/gzipmid"
+	"github.com/RomanIkonnikov93/cumulative_loyalty_sys/logging"
 	"github.com/golang-jwt/jwt/v4"
 )
 
-func Auth(cfg config.Config) func(next http.Handler) http.Handler {
+func Auth(cfg config.Config, logger logging.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			token := r.Header.Get("Authorization")
 			if token == "" {
+				logger.Printf("%v", http.StatusUnauthorized)
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			} else {
@@ -25,6 +27,7 @@ func Auth(cfg config.Config) func(next http.Handler) http.Handler {
 					return []byte(cfg.JWTSecretKey), nil
 				})
 				if err != nil || !tkn.Valid {
+					logger.Printf("%v", http.StatusUnauthorized)
 					w.WriteHeader(http.StatusUnauthorized)
 					return
 				} else {
@@ -38,6 +41,7 @@ func Auth(cfg config.Config) func(next http.Handler) http.Handler {
 
 func GzipResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 		if r.Header.Get("Accept-Encoding") == "gzip" {
 			gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
 			if err != nil {
@@ -56,14 +60,19 @@ func GzipResponse(next http.Handler) http.Handler {
 
 func GzipRequest(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+
+		logger := logging.GetLogger()
+
 		if r.Header.Get("Content-Encoding") == "gzip" {
 			b, err := io.ReadAll(r.Body)
 			if err != nil {
+				logger.Error(err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			data, err := gzipmid.DecompressGZIP(b)
 			if err != nil {
+				logger.Error(err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -73,5 +82,6 @@ func GzipRequest(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		}
 	}
+
 	return http.HandlerFunc(fn)
 }
