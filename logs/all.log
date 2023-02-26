@@ -1,1 +1,0 @@
-time="2023-02-21T10:01:41+05:00" level=info msg="server running" func="github.com/RomanIkonnikov93/cumulative_loyalty_sys/internal/server.StartServer()" file="server.go:41"
